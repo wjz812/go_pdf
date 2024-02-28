@@ -55,6 +55,7 @@ func readPdfGroup(path string) (string, error) {
 
 	for pageIndex := 1; pageIndex <= totalPage; pageIndex++ {
 		p := r.Page(pageIndex)
+		
 		if p.V.IsNull() {
 			continue
 		}

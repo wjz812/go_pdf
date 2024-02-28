@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"image"
+	"image/png"
 	"io"
 	"log"
 	"net/http"
@@ -12,9 +14,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/disintegration/imaging"
 	"github.com/google/go-tika/tika"
 	"github.com/ledongthuc/pdf"
 	"github.com/signintech/gopdf"
+	"github.com/srwiley/oksvg"
+	"github.com/srwiley/rasterx"
 )
 
 var (
@@ -82,24 +87,24 @@ func WriteImage() {
 	pdf.Image(resourcesPath+"/pictures/gopher01.jpg", 200, 50, nil)
 
 	//image bytes
-	b, err := os.ReadFile(resourcesPath + "/pictures/gopher02_color.png")
-	if err != nil {
-		log.Panic(err.Error())
-	}
+	// b, err := os.ReadFile(resourcesPath + "/pictures/gopher02_color.png")
+	// if err != nil {
+	// 	log.Panic(err.Error())
+	// }
 
-	imgH1, err := gopdf.ImageHolderByBytes(b)
-	if err != nil {
-		log.Panic(err.Error())
-	}
-	if err := pdf.ImageByHolder(imgH1, 200, 250, &gopdf.Rect{
-		W: 120,
-		H: 120,
-	}); err != nil {
-		log.Panic(err.Error())
-	}
+	// imgH1, err := gopdf.ImageHolderByBytes(b)
+	// if err != nil {
+	// 	log.Panic(err.Error())
+	// }
+	// if err := pdf.ImageByHolder(imgH1, 200, 250, &gopdf.Rect{
+	// 	W: 120,
+	// 	H: 120,
+	// }); err != nil {
+	// 	log.Panic(err.Error())
+	// }
 
 	//image io.Reader
-	file, err := os.Open(resourcesPath + "/pictures/gopher02_color.png")
+	file, err := os.Open(resourcesPath + "/pictures/activity.svg")
 	if err != nil {
 		log.Panic(err.Error())
 	}
@@ -145,6 +150,110 @@ func WriteImage() {
 
 	path := fmt.Sprintf("./pdf/create/%d.pdf", time.Now().Unix())
 	pdf.WritePdf(path)
+}
+
+func WriteImageToDiff() {
+	pdf := gopdf.GoPdf{}
+	pdf.Start(gopdf.Config{PageSize: *gopdf.PageSizeA4})
+	pdf.AddPage()
+
+	pdf.Image(resourcesPath+"/pictures/gopher01.jpg", 100, 500, nil)
+
+	filePath := resourcesPath + "/pictures/gopher02_color.tiff"
+	// filePath := resourcesPath + "/pictures/activity.svg"
+	file, err := os.Open(filePath)
+	if err != nil {
+		panic(err)
+	}
+	defer file.Close()
+
+	img, err := imaging.Decode(file)
+	if err != nil {
+		panic(err)
+	}
+
+	pngFile, err := os.CreateTemp("", "image.png")
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		pngFile.Close()
+		os.Remove(pngFile.Name())
+	}()
+
+	err = png.Encode(pngFile, img)
+	if err != nil {
+		panic(err)
+	}
+
+	pdf.Image(pngFile.Name(), 100, 500, nil)
+
+	path := fmt.Sprintf("./pdf/create/%d.pdf", time.Now().Unix())
+	pdf.WritePdf(path)
+}
+
+func WriteImageToSVG() {
+	pdf := gopdf.GoPdf{}
+	pdf.Start(gopdf.Config{PageSize: *gopdf.PageSizeA4})
+	pdf.AddPage()
+
+	pdf.Image(resourcesPath+"/pictures/gopher01.jpg", 100, 500, nil)
+
+	filePath := resourcesPath + "/pictures/mask.svg"
+	pngFile := svgToPng(filePath)
+
+	defer os.Remove(pngFile.Name())
+
+	pdf.Image(pngFile.Name(), 200, 200, nil)
+
+	path := fmt.Sprintf("./pdf/create/%d.pdf", time.Now().Unix())
+	pdf.WritePdf(path)
+}
+
+func svgToPng(filePath string) *os.File {
+
+	infile, err := os.Open(filePath)
+	if err != nil {
+		panic(err)
+	}
+	defer infile.Close()
+
+	icon, err := oksvg.ReadIconStream(infile)
+	if err != nil {
+		panic(err)
+	}
+
+	svgWidth := icon.ViewBox.W
+	svgHeight := icon.ViewBox.H
+	aspectRatio := svgWidth / svgHeight
+
+	var w, h float64
+	if aspectRatio > 1 { // width is greater than height
+		w = svgWidth
+		h = svgWidth / aspectRatio
+	} else {
+		w = svgHeight * aspectRatio
+		h = svgHeight
+	}
+
+	icon.SetTarget(0, 0, w, h)
+	rgba := image.NewRGBA(image.Rect(0, 0, int(w), int(h)))
+	icon.Draw(rasterx.NewDasher(int(w), int(h), rasterx.NewScannerGV(int(w), int(h), rgba, rgba.Bounds())), 1)
+
+	pngFile, err := os.CreateTemp("", "image.png")
+	if err != nil {
+		panic(err)
+	}
+	defer func() {
+		pngFile.Close()
+	}()
+
+	err = png.Encode(pngFile, rgba)
+	if err != nil {
+		panic(err)
+	}
+
+	return pngFile
 }
 
 // 页眉 页脚写入
@@ -513,6 +622,7 @@ func readPdf(path string) (string, error) {
 	}
 	var buf bytes.Buffer
 	b, err := r.GetPlainText()
+	
 	fmt.Println("====", b, err)
 	if err != nil {
 		return "", err

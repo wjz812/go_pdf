@@ -1,12 +1,10 @@
 package main
 
-import (
-	"gopdf/cad"
-)
+import "gopdf/pdf"
 
 func main() {
 	//pdf.BaseText()
-	//pdf.WriteImage()
+	// pdf.WriteImage()
 	//pdf.WriteHeaderAndFooter()
 	//pdf.WriteBaseGraph()
 	//pdf.WritePasswordProtection()
@@ -24,8 +22,10 @@ func main() {
 	// pdf.ReadPdf8()
 	// pdf.ReadPdf9()
 	// pdf.ReadPdf10()
+	// pdf.WriteImageToDiff()
+	// pdf.WriteImageToSVG()
 
-	cad.CadToPdf()
+	// cad.CadToPdf()
 	// cad.Read01()
 	// cad.Read02()
 	// cad.Write01()
@@ -34,4 +34,6 @@ func main() {
 	// cad.ReadDxf()
 	// cad.Read05()
 	// cad.Read()
+
+	pdf.ReadRect()
 }
